@@ -1,0 +1,230 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+from datetime import datetime, timedelta
+
+# Configuração da página para o modo wide, para melhor aproveitamento do espaço
+st.set_page_config(layout="wide")
+
+@st.cache_data
+def generate_fake_data(num_records=1000):
+    """
+    Gera um DataFrame de vendas fictícias e enriquecidas para a prototipagem.
+    """
+    # Dados base
+    customer_names = [
+        "Siderúrgica Atlas", "Construtora Rocha Forte", "Transportes Veloz", "Comércio Varejista Ponto Certo", 
+        "Escola Aprender Mais", "Hospital Vida Saudável", "Serviços Tech Inova", "Indústria Têxtil Fina",
+        "Logística Global", "Mercado Bom Preço", "Clínica Bem Estar", "Universidade Saber"
+    ]
+    
+    products = ["Produto A", "Serviço X", "Licença Software", "Consultoria Y", "Material Básico", "Plano Premium"]
+    segments = ["Campeões", "Fiéis", "Em Risco", "Novos Clientes", "Hibernando"]
+    
+    # Criação de um DataFrame de clientes únicos para atribuir características
+    customer_ids = range(101, 101 + len(customer_names))
+    df_customers = pd.DataFrame({
+        'id_cliente': customer_ids,
+        'nome_cliente': customer_names,
+        'segmento': np.random.choice(segments, len(customer_names), p=[0.1, 0.2, 0.2, 0.3, 0.2]),
+        'prob_prox_compra': np.random.uniform(0.05, 0.99, len(customer_names)).round(2),
+        'sugestao_prox_produto': np.random.choice(products, len(customer_names))
+    })
+
+    # Geração dos registros de vendas
+    sales_data = []
+    for _ in range(num_records):
+        customer_id = np.random.choice(customer_ids)
+        sale_date = datetime.now() - timedelta(days=np.random.randint(1, 730))
+        product = np.random.choice(products)
+        sale_value = np.random.uniform(500, 15000)
+        sales_data.append([customer_id, sale_date, product, sale_value])
+
+    df_sales = pd.DataFrame(sales_data, columns=['id_cliente', 'data_venda', 'produto', 'valor_venda'])
+    
+    # Combina os dados de vendas com os dados dos clientes
+    df_full = pd.merge(df_sales, df_customers, on='id_cliente')
+    
+    return df_full
+
+def show_segmentation_page(df):
+    """
+    Exibe a página do Protótipo 1: Dashboard de Segmentação de Clientes.
+    """
+    st.title("📈 Dashboard de Segmentação de Clientes")
+    st.markdown("Analise os perfis de clientes para criar estratégias de marketing e vendas mais eficazes.")
+
+    # --- Lógica de Análise RFV (Recência, Frequência, Valor) ---
+    today = datetime.now()
+    rfv_df = df.groupby('nome_cliente').agg(
+        recencia=('data_venda', lambda date: (today - date.max()).days),
+        frequencia=('data_venda', 'count'),
+        valor_total=('valor_venda', 'sum'),
+        segmento=('segmento', 'first') # Pega o segmento pré-definido
+    ).reset_index()
+
+    # --- Barra Lateral de Filtros ---
+    st.sidebar.header("Filtros")
+    selected_segments = st.sidebar.multiselect(
+        "Selecione os Segmentos",
+        options=rfv_df['segmento'].unique(),
+        default=rfv_df['segmento'].unique()
+    )
+    
+    filtered_rfv_df = rfv_df[rfv_df['segmento'].isin(selected_segments)]
+
+    # --- Métricas Chave ---
+    total_clientes = filtered_rfv_df['nome_cliente'].nunique()
+    receita_total = filtered_rfv_df['valor_total'].sum()
+    ticket_medio = receita_total / total_clientes if total_clientes > 0 else 0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Clientes Ativos", f"{total_clientes}", "no período")
+    col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}")
+    col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}")
+    
+    st.markdown("---")
+
+    # --- Gráficos e Tabelas ---
+    col1, col2 = st.columns([2, 1]) # Coluna do gráfico maior que a do resumo
+
+    with col1:
+        st.subheader("Visualização dos Segmentos (Recência vs Frequência)")
+        fig = px.scatter(
+            filtered_rfv_df,
+            x='recencia',
+            y='frequencia',
+            size='valor_total',
+            color='segmento',
+            hover_name='nome_cliente',
+            size_max=60,
+            title="Posicionamento de Clientes por RFV"
+        )
+        fig.update_layout(xaxis_title="Recência (dias desde a última compra)", yaxis_title="Frequência (nº de compras)")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Resumo por Segmento")
+        segment_summary = filtered_rfv_df.groupby('segmento')['valor_total'].sum().sort_values(ascending=False)
+        st.dataframe(segment_summary)
+        
+        # --- Data Storytelling ---
+        st.markdown("#### 💡 Insights Rápidos")
+        top_segment = segment_summary.idxmax()
+        st.info(f"O segmento **{top_segment}** é o mais valioso, representando a maior parte da receita. Focar em ações de fidelidade para este grupo pode maximizar o retorno.")
+
+    st.subheader("Detalhes dos Clientes no Segmento")
+    st.dataframe(filtered_rfv_df)
+
+
+def show_opportunities_page(df):
+    """
+    Exibe a página do Protótipo 2: Radar de Oportunidades de Venda.
+    """
+    st.title("🎯 Radar de Oportunidades de Venda")
+    st.markdown("Identifique proativamente quais clientes abordar e o que oferecer.")
+
+    # --- Barra Lateral de Filtros ---
+    st.sidebar.header("Filtros de Prospecção")
+    prob_threshold = st.sidebar.slider(
+        "Mostrar clientes com probabilidade de compra acima de:",
+        min_value=0, max_value=100, value=75, step=5
+    ) / 100.0
+
+    # Filtra clientes únicos com base na probabilidade
+    df_customers_unique = df.drop_duplicates(subset=['id_cliente']).set_index('id_cliente')
+    
+    opportunities_df = df_customers_unique[df_customers_unique['prob_prox_compra'] >= prob_threshold]
+    opportunities_df = opportunities_df.sort_values(by='prob_prox_compra', ascending=False)
+    
+    # --- Data Storytelling Header ---
+    st.header(f"⚡ Encontramos {len(opportunities_df)} clientes com alta chance de comprar!")
+    
+    # --- Tabela de Ação ---
+    st.subheader("Lista de Clientes Prioritários")
+    st.dataframe(
+        opportunities_df[['nome_cliente', 'prob_prox_compra', 'segmento', 'sugestao_prox_produto']],
+        use_container_width=True
+    )
+
+    # --- Detalhes do Cliente (Drill-down) ---
+    st.subheader("🔍 Análise Individual do Cliente")
+    if not opportunities_df.empty:
+        selected_customer = st.selectbox(
+            "Selecione um cliente da lista para ver mais detalhes:",
+            options=opportunities_df['nome_cliente']
+        )
+        
+        with st.expander(f"Ver histórico de {selected_customer}"):
+            customer_history = df[df['nome_cliente'] == selected_customer]
+            st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}")
+            st.write("Histórico de Compras:")
+            st.dataframe(customer_history[['data_venda', 'produto', 'valor_venda']])
+    else:
+        st.warning("Nenhum cliente atende ao critério de probabilidade selecionado.")
+
+
+def show_executive_summary_page(df):
+    """
+    Exibe a página do Protótipo 3: Resumo Executivo Estratégico.
+    """
+    st.title("📊 Resumo Executivo Gideon")
+    st.markdown(f"Relatório gerado em: **{datetime.now().strftime('%d/%m/%Y %H:%M')}**")
+    
+    # --- Cálculos para KPIs ---
+    df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
+    receita_preditiva = (df_customers_unique['valor_venda'].mean() * df_customers_unique['prob_prox_compra']).sum()
+    clientes_em_risco = df_customers_unique[df_customers_unique['segmento'] == 'Em Risco']['nome_cliente'].nunique()
+    segment_sales = df.groupby('segmento')['valor_venda'].sum()
+    top_segment = segment_sales.idxmax()
+
+    # --- Métricas de Alto Impacto ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}", delta="Estimativa", delta_color="off")
+    col2.metric("Clientes em Risco de Churn", f"{clientes_em_risco}", help="Clientes no segmento 'Em Risco'.")
+    col3.metric("Segmento Mais Valioso", top_segment, help=f"Segmento que mais gerou receita: R$ {segment_sales.max():,.0f}")
+
+    st.markdown("---")
+
+    # --- Análise Narrativa (Data Storytelling) ---
+    st.subheader("Análise Estratégica")
+    st.markdown(
+        f"""
+        - **Visão Geral:** Nossa análise preditiva estima uma receita de **R$ {receita_preditiva:,.2f}** no próximo ciclo de vendas, considerando o comportamento atual da base de clientes.
+        - **Foco Principal:** O segmento **'{top_segment}'** continua sendo o motor de crescimento. Estratégias de retenção e up-selling para este grupo são cruciais.
+        - **Ponto de Atenção:** Identificamos **{clientes_em_risco} clientes** com alto valor em risco de evasão. Uma campanha de reengajamento direcionada é recomendada com urgência para mitigar perdas.
+        """
+    )
+
+    # --- Gráfico Chave e Detalhamento ---
+    with st.expander("Ver detalhamento da Receita por Segmento"):
+        st.bar_chart(segment_sales)
+        st.markdown("O gráfico acima ilustra a contribuição de cada segmento para a receita total. Use esta informação para alocar recursos de marketing e vendas de forma mais inteligente.")
+
+
+def main():
+    """
+    Função principal que organiza a aplicação Streamlit.
+    """
+    # Gera os dados uma única vez
+    df = generate_fake_data()
+
+    # Menu de navegação na barra lateral
+    st.sidebar.image("./logo.png", width=100) # Um logo genérico
+    st.sidebar.title("Plataforma Gideon")
+    page_selection = st.sidebar.radio(
+        "Navegue pelos Protótipos",
+        ["Dashboard de Segmentação", "Radar de Oportunidades", "Resumo Executivo"]
+    )
+
+    # Exibe a página selecionada
+    if page_selection == "Dashboard de Segmentação":
+        show_segmentation_page(df)
+    elif page_selection == "Radar de Oportunidades":
+        show_opportunities_page(df)
+    elif page_selection == "Resumo Executivo":
+        show_executive_summary_page(df)
+
+if __name__ == "__main__":
+    main()
