@@ -4,6 +4,42 @@ import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
 
+
+import random
+from datetime import date, timedelta
+
+def generate_random_dates(start_date, end_date, num_dates):
+    """Gera uma lista de datas aleatórias em formato de string.
+
+    Args:
+        start_date (str): Data de início no formato 'dd/mm/yyyy'.
+        end_date (str): Data de fim no formato 'dd/mm/yyyy'.
+        num_dates (int): Número de datas a serem geradas.
+
+    Returns:
+        list: Uma lista de strings com as datas aleatórias.
+    """
+    
+    # Converte as datas de string para objetos date
+    start = date.fromisoformat(f"{start_date[6:]}-{start_date[3:5]}-{start_date[:2]}")
+    end = date.fromisoformat(f"{end_date[6:]}-{end_date[3:5]}-{end_date[:2]}")
+    
+    # Calcula a diferença em dias
+    delta = end - start
+    
+    random_dates = []
+    for _ in range(num_dates):
+        # Gera um número aleatório de dias para adicionar à data de início
+        random_days = random.randint(0, delta.days)
+        random_date = start + timedelta(days=random_days)
+        
+        # Formata a data para 'dd/mm/yyyy' e adiciona à lista
+        random_dates.append(random_date.strftime("%d/%m/%Y"))
+        
+    return random_dates
+
+
+
 # Configuração da página para o modo wide, para melhor aproveitamento do espaço
 st.set_page_config(layout="wide")
 
@@ -19,6 +55,15 @@ def generate_fake_data(num_records=1000):
         "Logística Global", "Mercado Bom Preço", "Clínica Bem Estar", "Universidade Saber"
     ]
     
+    
+    # Define as datas de início e fim
+    start_date_str = "05/09/2025"
+    end_date_str = "31/12/2025" 
+
+    # Gera e imprime a lista de 12 datas aleatórias
+    datas_prox_compra = generate_random_dates(start_date_str, end_date_str, 12)
+    print(datas_prox_compra)    
+    
     products = ["Produto A", "Serviço X", "Licença Software", "Consultoria Y", "Material Básico", "Plano Premium"]
     segments = ["Campeões", "Fiéis", "Em Risco", "Novos Clientes", "Hibernando"]
     
@@ -29,7 +74,8 @@ def generate_fake_data(num_records=1000):
         'nome_cliente': customer_names,
         'segmento': np.random.choice(segments, len(customer_names), p=[0.1, 0.2, 0.2, 0.3, 0.2]),
         'prob_prox_compra': np.random.uniform(0.05, 0.99, len(customer_names)).round(2),
-        'sugestao_prox_produto': np.random.choice(products, len(customer_names))
+        'sugestao_prox_produto': np.random.choice(products, len(customer_names)),
+        'datas_prox_compra': datas_prox_compra
     })
 
     # Geração dos registros de vendas
@@ -144,7 +190,7 @@ def show_opportunities_page(df):
     # --- Tabela de Ação ---
     st.subheader("Lista de Clientes Prioritários")
     st.dataframe(
-        opportunities_df[['nome_cliente', 'prob_prox_compra', 'segmento', 'sugestao_prox_produto']],
+        opportunities_df[['nome_cliente', 'prob_prox_compra', 'segmento', 'sugestao_prox_produto', 'datas_prox_compra']],
         use_container_width=True
     )
 
