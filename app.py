@@ -115,6 +115,19 @@ def generate_fake_data(num_records=1000):
     
     return df_full
 
+@st.cache_data
+def load_data():
+    
+    df_customers = pd.read_parquet('./data/customers.parquet')
+    
+    
+    df_sales = pd.read_parquet('./data/sales.parquet')
+    
+    # Combina os dados de vendas com os dados dos clientes
+    df_full = pd.merge(df_sales, df_customers, on='id_cliente')
+    
+    return df_full
+
 def show_segmentation_page(df):
     """
     Exibe a página do Protótipo 1: Dashboard de Segmentação de Clientes.
@@ -275,7 +288,8 @@ def main():
     Função principal que organiza a aplicação Streamlit.
     """
     # Gera os dados uma única vez
-    df = generate_fake_data()
+    #df = generate_fake_data()
+    df = load_data()
 
     # Menu de navegação na barra lateral
     st.sidebar.image("./logo.png", width=100) # Um logo genérico
