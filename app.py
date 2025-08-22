@@ -8,6 +8,23 @@ from datetime import datetime, timedelta
 import random
 from datetime import date, timedelta
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+def df_to_parket(df, nome_do_arquivo):
+    
+    # Converta e salve o DataFrame em um arquivo Parquet
+    # O método 'to_parquet()' do pandas usa pyarrow ou fastparquet automaticamente
+    df.to_parquet(nome_do_arquivo, engine='pyarrow', index=False)
+
+    print(f"DataFrame salvo com sucesso em '{nome_do_arquivo}'")
+
+    # Opcional: verifique se o arquivo foi salvo corretamente lendo-o de volta
+    df_lido = pd.read_parquet(nome_do_arquivo, engine='pyarrow')
+    print("\nConteúdo do DataFrame lido do arquivo Parquet:")
+    print(df_lido)
+
+
 def generate_random_dates(start_date, end_date, num_dates):
     """Gera uma lista de datas aleatórias em formato de string.
 
@@ -61,7 +78,7 @@ def generate_fake_data(num_records=1000):
     end_date_str = "31/12/2025" 
 
     # Gera e imprime a lista de 12 datas aleatórias
-    datas_prox_compra = generate_random_dates(start_date_str, end_date_str, 12)
+    datas_prox_compra = generate_random_dates(start_date_str, end_date_str, len(customer_names))
     print(datas_prox_compra)    
     
     products = ["Produto A", "Serviço X", "Licença Software", "Consultoria Y", "Material Básico", "Plano Premium"]
@@ -77,6 +94,8 @@ def generate_fake_data(num_records=1000):
         'sugestao_prox_produto': np.random.choice(products, len(customer_names)),
         'datas_prox_compra': datas_prox_compra
     })
+    
+    #df_to_parket(df_customers, "./data/customers.parquet")
 
     # Geração dos registros de vendas
     sales_data = []
@@ -88,9 +107,11 @@ def generate_fake_data(num_records=1000):
         sales_data.append([customer_id, sale_date, product, sale_value])
 
     df_sales = pd.DataFrame(sales_data, columns=['id_cliente', 'data_venda', 'produto', 'valor_venda'])
+    #df_to_parket(df_sales, "./data/sales.parquet")
     
     # Combina os dados de vendas com os dados dos clientes
     df_full = pd.merge(df_sales, df_customers, on='id_cliente')
+    #df_to_parket(df_full, "./data/full.parquet")
     
     return df_full
 

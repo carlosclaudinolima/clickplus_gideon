@@ -1,2 +1,3 @@
 **/.venv
-**/data
+data/dados.parquet
+data/df_t.csv
