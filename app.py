@@ -283,6 +283,14 @@ def show_executive_summary_page(df):
         st.markdown("O gráfico acima ilustra a contribuição de cada segmento para a receita total. Use esta informação para alocar recursos de marketing e vendas de forma mais inteligente.")
 
 
+def show_ingestao_dados():
+    #st.title("Ingestão de dados")
+    #sst.markdown("Faça upload de um arquivos.")
+    up = st.file_uploader("upload file", type={"csv", "txt"})
+    if up is not None:
+        spectra_df = pd.read_csv(up)
+        st.write(spectra_df)
+
 def main():
     """
     Função principal que organiza a aplicação Streamlit.
@@ -296,7 +304,7 @@ def main():
     st.sidebar.title("Plataforma Gideon")
     page_selection = st.sidebar.radio(
         "Navegue pelos Protótipos",
-        ["Dashboard de Segmentação", "Radar de Oportunidades", "Resumo Executivo"]
+        ["Dashboard de Segmentação", "Radar de Oportunidades", "Resumo Executivo", "Ingestão de Dados"]
     )
 
     # Exibe a página selecionada
@@ -306,6 +314,8 @@ def main():
         show_opportunities_page(df)
     elif page_selection == "Resumo Executivo":
         show_executive_summary_page(df)
+    elif page_selection == "Ingestão de Dados":
+        show_ingestao_dados()
 
 if __name__ == "__main__":
     main()
