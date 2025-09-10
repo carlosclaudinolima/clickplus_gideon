@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import locale
 from datetime import datetime, timedelta
 
 
@@ -79,7 +80,6 @@ def generate_fake_data(num_records=1000):
 
     # Gera e imprime a lista de 12 datas aleatórias
     datas_prox_compra = generate_random_dates(start_date_str, end_date_str, len(customer_names))
-    print(datas_prox_compra)    
     
     products = ["Produto A", "Serviço X", "Licença Software", "Consultoria Y", "Material Básico", "Plano Premium"]
     segments = ["Campeões", "Fiéis", "Em Risco", "Novos Clientes", "Hibernando"]
@@ -119,9 +119,9 @@ def generate_fake_data(num_records=1000):
 def load_data():
     
     df_customers = pd.read_parquet('./data/customers.parquet')
-    
-    
+        
     df_sales = pd.read_parquet('./data/sales.parquet')
+    print(df_sales)
     
     # Combina os dados de vendas com os dados dos clientes
     df_full = pd.merge(df_sales, df_customers, on='id_cliente')
@@ -161,9 +161,11 @@ def show_segmentation_page(df):
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Clientes Ativos", f"{total_clientes}", "no período")
-    col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}")
-    col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}")
-    
+    #col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}")
+    #col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}")
+    # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
+    col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.markdown("---")
 
     # --- Gráficos e Tabelas ---
@@ -187,7 +189,20 @@ def show_segmentation_page(df):
     with col2:
         st.subheader("Resumo por Segmento")
         segment_summary = filtered_rfv_df.groupby('segmento')['valor_total'].sum().sort_values(ascending=False)
-        st.dataframe(segment_summary)
+        st.dataframe(
+            segment_summary,
+            column_config={
+                "segmento": st.column_config.Column(
+                    "Segmento",
+                    help="Segmento",
+                ),
+                "valor_total": st.column_config.NumberColumn(
+                    "Valor Total",
+                    format="%.2f",
+                    help="Valor total de compra",
+                ),            
+            },
+        )
         
         # --- Data Storytelling ---
         st.markdown("#### 💡 Insights Rápidos")
@@ -195,7 +210,35 @@ def show_segmentation_page(df):
         st.info(f"O segmento **{top_segment}** é o mais valioso, representando a maior parte da receita. Focar em ações de fidelidade para este grupo pode maximizar o retorno.")
 
     st.subheader("Detalhes dos Clientes no Segmento")
-    st.dataframe(filtered_rfv_df)
+    st.dataframe(
+        filtered_rfv_df,
+        
+        column_config={
+            "nome_cliente": st.column_config.Column(
+                "Cliente",
+                help="Nome do Cliente",
+            ),
+            "recencia": st.column_config.Column(
+                "Recência (dias)",
+                help="Recência (dias desde a última compra)",
+            ),
+            "frequencia": st.column_config.NumberColumn(
+                "Frequência",
+                help="Frequência (nº de compras)",
+            ),
+            "valor_total": st.column_config.NumberColumn(                
+                "Valor Total",
+                format="%.2f",
+                help="Valor Total",
+            ),
+            "segmento": st.column_config.Column(
+                "Segmento",
+                help="Segmento",
+            ),
+        
+        },
+        hide_index=True,
+    )
 
 
 def show_opportunities_page(df):
@@ -225,6 +268,35 @@ def show_opportunities_page(df):
     st.subheader("Lista de Clientes Prioritários")
     st.dataframe(
         opportunities_df[['nome_cliente', 'prob_prox_compra', 'segmento', 'sugestao_prox_produto', 'datas_prox_compra']],
+        
+        column_config={
+            "id_cliente": st.column_config.Column(
+                "ID",
+                help="ID do Cliente",
+            ),
+            "nome_cliente": st.column_config.Column(
+                "Cliente",
+                help="Nome do Cliente",
+            ),
+            "prob_prox_compra": st.column_config.NumberColumn(
+                "Prob. próxima compra (%)",
+                format="percent",
+                help="Probabilidade da próxima compra",
+            ),
+            "segmento": st.column_config.Column(
+                "Segmento",
+                help="Segmento",
+            ),
+            "sugestao_prox_produto": st.column_config.Column(
+                "Próximo trecho",
+                help="Próximo trecho",
+            ),
+            "datas_prox_compra": st.column_config.Column(
+                "Data próxima compra",
+                help="Data da próxima compra",
+            ),
+        },
+        hide_index=True,
         use_container_width=True
     )
 
@@ -238,9 +310,29 @@ def show_opportunities_page(df):
         
         with st.expander(f"Ver histórico de {selected_customer}"):
             customer_history = df[df['nome_cliente'] == selected_customer]
-            st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}")
+            #st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}")
+            # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
+            st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             st.write("Histórico de Compras:")
-            st.dataframe(customer_history[['data_venda', 'produto', 'valor_venda']])
+            st.dataframe(customer_history[['data_venda', 'produto', 'valor_venda']],
+                         column_config={
+                            "data_venda": st.column_config.DatetimeColumn(
+                                "Data da Venda",
+                                help="ID do Cliente",
+                            ),
+                            "produto": st.column_config.Column(
+                                "Produto",
+                                help="Nome do Produto",
+                            ),
+                            "valor_venda": st.column_config.NumberColumn(
+                                "Valor da Venda",
+                                #format="localized",
+                                format="%.2f",
+                                help="Probabilidade da próxima compra",
+                            ),                            
+                        },
+                        hide_index=True, 
+                    )
     else:
         st.warning("Nenhum cliente atende ao critério de probabilidade selecionado.")
 
@@ -249,7 +341,7 @@ def show_executive_summary_page(df):
     """
     Exibe a página do Protótipo 3: Resumo Executivo Estratégico.
     """
-    st.title("📊 Resumo Executivo Gideon")
+    st.title("📊 Resumo Executivo ClickPlus")
     st.markdown(f"Relatório gerado em: **{datetime.now().strftime('%d/%m/%Y %H:%M')}**")
     
     # --- Cálculos para KPIs ---
@@ -261,7 +353,9 @@ def show_executive_summary_page(df):
 
     # --- Métricas de Alto Impacto ---
     col1, col2, col3 = st.columns(3)
-    col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}", delta="Estimativa", delta_color="off")
+    #col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}", delta="Estimativa", delta_color="off")
+    # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
+    col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}".replace(",", "X").replace(".", ",").replace("X", "."), delta="Estimativa", delta_color="off")
     col2.metric("Clientes em Risco de Churn", f"{clientes_em_risco}", help="Clientes no segmento 'Em Risco'.")
     col3.metric("Segmento Mais Valioso", top_segment, help=f"Segmento que mais gerou receita: R$ {segment_sales.max():,.0f}")
 
@@ -292,19 +386,26 @@ def show_ingestao_dados():
         st.write(spectra_df)
 
 def main():
+    
     """
     Função principal que organiza a aplicação Streamlit.
     """
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
     # Gera os dados uma única vez
     #df = generate_fake_data()
     df = load_data()
 
     # Menu de navegação na barra lateral
     st.sidebar.image("./logo.png", width=100) # Um logo genérico
-    st.sidebar.title("Plataforma Gideon")
+    st.sidebar.title("Plataforma ClickPlus")
     page_selection = st.sidebar.radio(
         "Navegue pelos Protótipos",
-        ["Dashboard de Segmentação", "Radar de Oportunidades", "Resumo Executivo", "Ingestão de Dados"]
+        [
+            "Dashboard de Segmentação", 
+            "Radar de Oportunidades", 
+            "Resumo Executivo", 
+            #"Ingestão de Dados"
+        ]
     )
 
     # Exibe a página selecionada
