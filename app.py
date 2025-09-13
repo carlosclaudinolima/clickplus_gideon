@@ -329,7 +329,7 @@ def show_opportunities_page(df):
         )
         
         with st.expander(f"Ver histórico de {selected_customer}"):
-            customer_history = df[df['nome_cliente'] == selected_customer]
+            customer_history = df[df['nome_cliente'] == selected_customer]            
             #st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}")
             # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
             st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -440,13 +440,14 @@ def show_customer_360_page(df):
 
         with col3:
             st.subheader("Recomendação")
-            st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_trecho'])
-            st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_trecho']}**.")
+            st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_produto'])
+            st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_produto']}**.")
 
         with st.expander("Ver Histórico de Compras Detalhado"):
             customer_history = df[df['nome_cliente'] == selected_customer_name]
             st.metric("Total Gasto (Lifetime Value)", f"R$ {customer_history['valor_venda'].sum():,.2f}")
-            colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
+            #colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
+            colunas_historico = ['data_venda', 'produto', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
             st.dataframe(customer_history[colunas_historico])
             
 
