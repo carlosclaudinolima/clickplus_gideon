@@ -1,0 +1,1 @@
+# Camada Gold do DataLake

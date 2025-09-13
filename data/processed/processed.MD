@@ -1,0 +1,1 @@
+# Camada Silver do DataLake
