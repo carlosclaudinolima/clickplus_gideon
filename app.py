@@ -451,7 +451,8 @@ def main():
             "Dashboard de Segmentação", 
             "Radar de Oportunidades", 
             "Resumo Executivo", 
-            #"Ingestão de Dados"
+            #"Ingestão de Dados",
+            "Visão 360° do Cliente"
         ]
     )
 
@@ -464,6 +465,8 @@ def main():
         show_executive_summary_page(df)
     elif page_selection == "Ingestão de Dados":
         show_ingestao_dados()
+    elif page_selection == "Visão 360° do Cliente":
+            show_customer_360_page(df)
 
 if __name__ == "__main__":
     main()
