@@ -358,6 +358,17 @@ def show_opportunities_page(df):
 
 
 def show_executive_summary_page(df):
+    
+    dias = ['30 dias', '7 dias']
+    colunas_predicao = ['prob_compra_30d', 'prob_compra_7d']
+    
+    prediction_model = st.sidebar.selectbox("Filtrar por probabilidade de compra em:", dias)
+    
+    index = dias.index(prediction_model)
+    
+    prob_column = colunas_predicao[index]
+    
+    
     """
     Exibe a página do Protótipo 3: Resumo Executivo Estratégico.
     """
@@ -366,7 +377,7 @@ def show_executive_summary_page(df):
     
     # --- Cálculos para KPIs ---
     df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
-    receita_preditiva = (df_customers_unique['valor_venda'].mean() * df_customers_unique['prob_prox_compra']).sum()
+    receita_preditiva = (df_customers_unique['valor_venda'].mean() * df_customers_unique[prob_column]).sum()
     clientes_em_risco = df_customers_unique[df_customers_unique['segmento'] == 'Em Risco']['nome_cliente'].nunique()
     segment_sales = df.groupby('segmento')['valor_venda'].sum()
     top_segment = segment_sales.idxmax()
