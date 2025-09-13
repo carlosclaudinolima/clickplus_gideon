@@ -12,6 +12,10 @@ from datetime import date, timedelta
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+# --- Configuração da Página ---
+# Define o layout da página para o modo 'wide', aproveitando toda a largura da tela.
+# st.set_page_config(layout="wide")
+
 def df_to_parket(df, nome_do_arquivo):
     
     # Converta e salve o DataFrame em um arquivo Parquet
@@ -117,12 +121,11 @@ def generate_fake_data(num_records=1000):
 
 @st.cache_data
 def load_data():
+    CURATED_ZONE_DIR = './data/curated/'
     
-    df_customers = pd.read_parquet('./data/customers.parquet')
+    df_customers = pd.read_parquet(f'{CURATED_ZONE_DIR}customers.parquet')        
+    df_sales = pd.read_parquet(f'{CURATED_ZONE_DIR}sales.parquet')
         
-    df_sales = pd.read_parquet('./data/sales.parquet')
-    print(df_sales)
-    
     # Combina os dados de vendas com os dados dos clientes
     df_full = pd.merge(df_sales, df_customers, on='id_cliente')
     
@@ -384,6 +387,50 @@ def show_ingestao_dados():
     if up is not None:
         spectra_df = pd.read_csv(up)
         st.write(spectra_df)
+        
+        
+def show_customer_360_page(df):
+    """
+    Exibe a página "Visão 360° do Cliente", consolidando todas as informações.
+    """
+    st.title("👤 Visão 360° do Cliente")
+    st.markdown("Uma visão completa dos insights, cluster e previsões para um cliente específico.")
+
+    df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
+    
+    selected_customer_name = st.selectbox(
+        "Selecione um cliente para análise:",
+        options=sorted(df_customers_unique['nome_cliente'].unique())
+    )
+
+    if selected_customer_name:
+        customer_data = df_customers_unique[df_customers_unique['nome_cliente'] == selected_customer_name].iloc[0]
+        
+        st.header(f"Análise de {customer_data['nome_cliente']}")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.subheader("Perfil do Cliente")
+            st.metric(label="Segmento (Persona)", value=customer_data['segmento'])
+            st.info(f"Este cliente pertence ao grupo '{customer_data['segmento']}', com base em seu comportamento de compras (RFM).")
+
+        with col2:
+            st.subheader("Previsão de Compra")
+            st.metric(label="Prob. de Compra em 7 Dias", value=f"{customer_data['prob_compra_7d']:.0%}")
+            st.metric(label="Prob. de Compra em 30 Dias", value=f"{customer_data['prob_compra_30d']:.0%}")
+            st.warning(f"O modelo XGBoost indica uma probabilidade de {customer_data['prob_compra_30d']:.0%} de este cliente realizar uma nova compra no próximo mês.")
+
+        with col3:
+            st.subheader("Recomendação")
+            st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_trecho'])
+            st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_trecho']}**.")
+
+        with st.expander("Ver Histórico de Compras Detalhado"):
+            customer_history = df[df['nome_cliente'] == selected_customer_name]
+            st.metric("Total Gasto (Lifetime Value)", f"R$ {customer_history['valor_venda'].sum():,.2f}")
+            colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
+            st.dataframe(customer_history[colunas_historico])
 
 def main():
     
