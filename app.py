@@ -121,10 +121,18 @@ def generate_fake_data(num_records=1000):
 
 @st.cache_data
 def load_data():
-    CURATED_ZONE_DIR = './data/redis/'
+    ML_ZONE_DIR = './data/redis/'
     
-    df_customers = pd.read_parquet(f'{CURATED_ZONE_DIR}customers.parquet')        
-    df_sales = pd.read_parquet(f'{CURATED_ZONE_DIR}sales.parquet')
+    df_customers = pd.read_parquet(f'{ML_ZONE_DIR}customers.parquet')
+    print('No Load')
+    print('Customers')
+    print(df_customers.info())
+    
+    df_sales = pd.read_parquet(f'{ML_ZONE_DIR}sales.parquet')
+    
+    
+    print('Sales')
+    print(df_sales.info())
         
     # Combina os dados de vendas com os dados dos clientes
     df_full = pd.merge(df_sales, df_customers, on='id_cliente')
@@ -132,6 +140,8 @@ def load_data():
     return df_full
 
 def show_segmentation_page(df):
+    print('Dentro da função')
+    print(df.info())
     """
     Exibe a página do Protótipo 1: Dashboard de Segmentação de Clientes.
     """
@@ -141,7 +151,6 @@ def show_segmentation_page(df):
     # --- Lógica de Análise RFV (Recência, Frequência, Valor) ---
     today = datetime.now()
     
-    print(df.info())
     
     rfv_df = df.groupby('nome_cliente').agg(
         recencia=('data_venda', lambda date: (today - date.max()).days),
@@ -392,48 +401,49 @@ def show_ingestao_dados():
         st.write(spectra_df)
         
         
-def show_customer_360_page(df):
-    """
-    Exibe a página "Visão 360° do Cliente", consolidando todas as informações.
-    """
-    st.title("👤 Visão 360° do Cliente")
-    st.markdown("Uma visão completa dos insights, cluster e previsões para um cliente específico.")
+# def show_customer_360_page(df):
+#     """
+#     Exibe a página "Visão 360° do Cliente", consolidando todas as informações.
+#     """
+#     st.title("👤 Visão 360° do Cliente")
+#     st.markdown("Uma visão completa dos insights, cluster e previsões para um cliente específico.")
 
-    df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
+#     df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
     
-    selected_customer_name = st.selectbox(
-        "Selecione um cliente para análise:",
-        options=sorted(df_customers_unique['nome_cliente'].unique())
-    )
+#     selected_customer_name = st.selectbox(
+#         "Selecione um cliente para análise:",
+#         options=sorted(df_customers_unique['nome_cliente'].unique())
+#     )
 
-    if selected_customer_name:
-        customer_data = df_customers_unique[df_customers_unique['nome_cliente'] == selected_customer_name].iloc[0]
+#     if selected_customer_name:
+#         customer_data = df_customers_unique[df_customers_unique['nome_cliente'] == selected_customer_name].iloc[0]
         
-        st.header(f"Análise de {customer_data['nome_cliente']}")
+#         st.header(f"Análise de {customer_data['nome_cliente']}")
         
-        col1, col2, col3 = st.columns(3)
+#         col1, col2, col3 = st.columns(3)
         
-        with col1:
-            st.subheader("Perfil do Cliente")
-            st.metric(label="Segmento (Persona)", value=customer_data['segmento'])
-            st.info(f"Este cliente pertence ao grupo '{customer_data['segmento']}', com base em seu comportamento de compras (RFM).")
+#         with col1:
+#             st.subheader("Perfil do Cliente")
+#             st.metric(label="Segmento (Persona)", value=customer_data['segmento'])
+#             st.info(f"Este cliente pertence ao grupo '{customer_data['segmento']}', com base em seu comportamento de compras (RFM).")
 
-        with col2:
-            st.subheader("Previsão de Compra")
-            st.metric(label="Prob. de Compra em 7 Dias", value=f"{customer_data['prob_compra_7d']:.0%}")
-            st.metric(label="Prob. de Compra em 30 Dias", value=f"{customer_data['prob_compra_30d']:.0%}")
-            st.warning(f"O modelo XGBoost indica uma probabilidade de {customer_data['prob_compra_30d']:.0%} de este cliente realizar uma nova compra no próximo mês.")
+#         with col2:
+#             st.subheader("Previsão de Compra")
+#             st.metric(label="Prob. de Compra em 7 Dias", value=f"{customer_data['prob_compra_7d']:.0%}")
+#             st.metric(label="Prob. de Compra em 30 Dias", value=f"{customer_data['prob_compra_30d']:.0%}")
+#             st.warning(f"O modelo XGBoost indica uma probabilidade de {customer_data['prob_compra_30d']:.0%} de este cliente realizar uma nova compra no próximo mês.")
 
-        with col3:
-            st.subheader("Recomendação")
-            st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_trecho'])
-            st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_trecho']}**.")
+#         with col3:
+#             st.subheader("Recomendação")
+#             st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_trecho'])
+#             st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_trecho']}**.")
 
-        with st.expander("Ver Histórico de Compras Detalhado"):
-            customer_history = df[df['nome_cliente'] == selected_customer_name]
-            st.metric("Total Gasto (Lifetime Value)", f"R$ {customer_history['valor_venda'].sum():,.2f}")
-            colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
-            st.dataframe(customer_history[colunas_historico])
+#         with st.expander("Ver Histórico de Compras Detalhado"):
+#             customer_history = df[df['nome_cliente'] == selected_customer_name]
+#             st.metric("Total Gasto (Lifetime Value)", f"R$ {customer_history['valor_venda'].sum():,.2f}")
+#             colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
+#             st.dataframe(customer_history[colunas_historico])
+            
 
 def main():
     
@@ -458,7 +468,8 @@ def main():
             "Visão 360° do Cliente"
         ]
     )
-
+    print('Antes de chamar a função')
+    print(df.info())
     # Exibe a página selecionada
     if page_selection == "Dashboard de Segmentação":
         show_segmentation_page(df)
