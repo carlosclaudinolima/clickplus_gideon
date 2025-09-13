@@ -268,7 +268,6 @@ def show_opportunities_page(df):
     
     prob_column = colunas_predicao[index]
     
-    
     prob_threshold = st.sidebar.slider(
         f"Mostrar clientes com probabilidade de compra em ({dias[index]}) acima de:",
         min_value=0, max_value=100, value=75, step=5
