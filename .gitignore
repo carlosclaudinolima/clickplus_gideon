@@ -1,7 +1,7 @@
 app2.py
 **/.venv
 data/raw/*
-data/processed/*
-data/curated/*
+data/processed/*.parquet
+data/curated/*.parquet
 data/redis/*.parquet
 data/df_t.csv

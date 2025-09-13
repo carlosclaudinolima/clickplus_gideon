@@ -121,7 +121,7 @@ def generate_fake_data(num_records=1000):
 
 @st.cache_data
 def load_data():
-    CURATED_ZONE_DIR = './data/curated/'
+    CURATED_ZONE_DIR = './data/redis/'
     
     df_customers = pd.read_parquet(f'{CURATED_ZONE_DIR}customers.parquet')        
     df_sales = pd.read_parquet(f'{CURATED_ZONE_DIR}sales.parquet')
@@ -140,6 +140,9 @@ def show_segmentation_page(df):
 
     # --- Lógica de Análise RFV (Recência, Frequência, Valor) ---
     today = datetime.now()
+    
+    print(df.info())
+    
     rfv_df = df.groupby('nome_cliente').agg(
         recencia=('data_venda', lambda date: (today - date.max()).days),
         frequencia=('data_venda', 'count'),
