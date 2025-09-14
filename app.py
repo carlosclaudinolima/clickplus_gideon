@@ -470,7 +470,7 @@ def main():
     """
     Função principal que organiza a aplicação Streamlit.
     """
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+    #locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
     # Gera os dados uma única vez
     #df = generate_fake_data()
     df = load_data()
