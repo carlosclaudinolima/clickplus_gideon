@@ -292,12 +292,6 @@ def main():
     # Gera os dados uma única vez
     #df = generate_fake_data()
 
-    try:
-        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-    except locale.Error:
-        st.warning("Localidade 'pt_BR.UTF-8' não encontrada.")
-        pass
-
 
     df = load_data()
 
