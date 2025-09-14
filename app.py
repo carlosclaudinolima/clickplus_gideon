@@ -214,13 +214,16 @@ def show_segmentation_page(df):
         
         # --- Data Storytelling ---
         st.markdown("#### 💡 Insights Rápidos")
-        top_segment = segment_summary.idxmax()
+        try:
+            top_segment = segment_summary.idxmax()
+        except:
+            top_segment = 'NENHUM SELECIONADO'
+        
         st.info(f"O segmento **{top_segment}** é o mais valioso, representando a maior parte da receita. Focar em ações de fidelidade para este grupo pode maximizar o retorno.")
 
     st.subheader("Detalhes dos Clientes no Segmento")
     st.dataframe(
-        filtered_rfv_df,
-        
+        filtered_rfv_df,        
         column_config={
             "nome_cliente": st.column_config.Column(
                 "Cliente",

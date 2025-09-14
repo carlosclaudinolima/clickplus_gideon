@@ -5,5 +5,5 @@ data/raw/*
 data/processed/*.parquet
 data/processed/*.json
 data/curated/*.parquet
-data/redis/*.parquet
+
 data/df_t.csv
