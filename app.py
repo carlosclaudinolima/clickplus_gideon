@@ -3,469 +3,287 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import locale
-from datetime import datetime, timedelta
+from datetime import datetime
+from streamlit_option_menu import option_menu
 
-
-import random
-from datetime import date, timedelta
-
-import pyarrow as pa
-import pyarrow.parquet as pq
+# --- Constantes de Estilo ---
+PRIMARY_COLOR = "#6c2bd9"  # Cor roxa principal da marca
+FONT_FAMILY = "'system-ui', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 # --- Configuração da Página ---
-# Define o layout da página para o modo 'wide', aproveitando toda a largura da tela.
-# st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="ClickPlus Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
 
-def df_to_parket(df, nome_do_arquivo):
-    
-    # Converta e salve o DataFrame em um arquivo Parquet
-    # O método 'to_parquet()' do pandas usa pyarrow ou fastparquet automaticamente
-    df.to_parquet(nome_do_arquivo, engine='pyarrow', index=False)
+# --- Carregamento dos ícones (Bootstrap Icons + Material Symbols) ---
+# Observação: se sua rede bloquear CDNs, a fonte não será carregada — veja o checklist abaixo.
+st.markdown("""
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0" />
+""", unsafe_allow_html=True)
 
-    print(f"DataFrame salvo com sucesso em '{nome_do_arquivo}'")
+# --- Estilo Customizado (ajustado para NÃO sobrescrever ícones) ---
+st.markdown(f"""
+    <style>
+    /* Aplique a fonte do sistema apenas globalmente (sem forçar em every .st- / .css- element) */
+    html, body {{
+        font-family: {FONT_FAMILY};
+    }}
 
-    # Opcional: verifique se o arquivo foi salvo corretamente lendo-o de volta
-    df_lido = pd.read_parquet(nome_do_arquivo, engine='pyarrow')
-    print("\nConteúdo do DataFrame lido do arquivo Parquet:")
-    print(df_lido)
+    /* Títulos */
+    h1, h2, h3, h4, h5, h6 {{
+        font-family: {FONT_FAMILY};
+    }}
 
+    /* Estilo para as métricas (cards) */
+    .stMetric {{
+        border-radius: 10px;
+        padding: 15px;
+        background-color: {PRIMARY_COLOR};
+        height: 100%;
+    }}
+    .stMetric [data-testid="stMetricValue"], .stMetric [data-testid="stMetricLabel"] {{
+        color: white;
+    }}
 
-def generate_random_dates(start_date, end_date, num_dates):
-    """Gera uma lista de datas aleatórias em formato de string.
+    /* Cor dos filtros (multiselect) */
+    .stMultiSelect div[data-baseweb="tag"] {{
+        background-color: {PRIMARY_COLOR} !important;
+        border-radius: 5px;
+    }}
 
-    Args:
-        start_date (str): Data de início no formato 'dd/mm/yyyy'.
-        end_date (str): Data de fim no formato 'dd/mm/yyyy'.
-        num_dates (int): Número de datas a serem geradas.
+    /* Slider */
+    div[data-baseweb="slider"] > div:nth-child(2) > div {{
+        background-color: {PRIMARY_COLOR} !important;
+    }}
+    div[data-baseweb="slider"] > div:nth-child(3) {{
+        background-color: {PRIMARY_COLOR} !important;
+    }}
 
-    Returns:
-        list: Uma lista de strings com as datas aleatórias.
-    """
-    
-    # Converte as datas de string para objetos date
-    start = date.fromisoformat(f"{start_date[6:]}-{start_date[3:5]}-{start_date[:2]}")
-    end = date.fromisoformat(f"{end_date[6:]}-{end_date[3:5]}-{end_date[:2]}")
-    
-    # Calcula a diferença em dias
-    delta = end - start
-    
-    random_dates = []
-    for _ in range(num_dates):
-        # Gera um número aleatório de dias para adicionar à data de início
-        random_days = random.randint(0, delta.days)
-        random_date = start + timedelta(days=random_days)
-        
-        # Formata a data para 'dd/mm/yyyy' e adiciona à lista
-        random_dates.append(random_date.strftime("%d/%m/%Y"))
-        
-    return random_dates
+    /* Barra de progresso no DataFrame */
+    div[data-testid="stDataFrameBar"] > div {{
+        background-color: {PRIMARY_COLOR} !important;
+    }}
 
+    /* Métricas dentro do expander */
+    [data-testid="stExpander"] .stMetric {{
+        background-color: #262730;
+        padding: 10px;
+    }}
+    [data-testid="stExpander"] .stMetric [data-testid="stMetricLabel"] {{
+        font-size: 0.9rem !important;
+    }}
+    [data-testid="stExpander"] .stMetric [data-testid="stMetricValue"] {{
+        font-size: 1.2rem !important;
+    }}
 
+    /* ===========================
+       EXCEÇÕES PARA FONTES DE ÍCONES
+       Não deixe que a regra global sobrescreva as families de ícones.
+       =========================== */
+    /* Material Symbols (Google) */
+    .material-symbols-outlined, .material-symbols-sharp, .material-symbols-rounded {{
+        font-family: 'Material Symbols Outlined', 'Material Symbols Sharp', 'Material Symbols Rounded' !important;
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0;
+        speak: none;
+    }}
 
-# Configuração da página para o modo wide, para melhor aproveitamento do espaço
-st.set_page_config(layout="wide")
+    /* Bootstrap Icons */
+    .bi, [class^="bi-"], [class*=" bi-"] {{
+        font-family: 'bootstrap-icons' !important;
+        speak: none;
+    }}
 
-@st.cache_data
-def generate_fake_data(num_records=1000):
-    """
-    Gera um DataFrame de vendas fictícias e enriquecidas para a prototipagem.
-    """
-    # Dados base
-    customer_names = [
-        "Siderúrgica Atlas", "Construtora Rocha Forte", "Transportes Veloz", "Comércio Varejista Ponto Certo", 
-        "Escola Aprender Mais", "Hospital Vida Saudável", "Serviços Tech Inova", "Indústria Têxtil Fina",
-        "Logística Global", "Mercado Bom Preço", "Clínica Bem Estar", "Universidade Saber"
-    ]
-    
-    
-    # Define as datas de início e fim
-    start_date_str = "05/09/2025"
-    end_date_str = "31/12/2025" 
+    </style>
+""", unsafe_allow_html=True)
 
-    # Gera e imprime a lista de 12 datas aleatórias
-    datas_prox_compra = generate_random_dates(start_date_str, end_date_str, len(customer_names))
-    
-    products = ["Produto A", "Serviço X", "Licença Software", "Consultoria Y", "Material Básico", "Plano Premium"]
-    segments = ["Campeões", "Fiéis", "Em Risco", "Novos Clientes", "Hibernando"]
-    
-    # Criação de um DataFrame de clientes únicos para atribuir características
-    customer_ids = range(101, 101 + len(customer_names))
-    df_customers = pd.DataFrame({
-        'id_cliente': customer_ids,
-        'nome_cliente': customer_names,
-        'segmento': np.random.choice(segments, len(customer_names), p=[0.1, 0.2, 0.2, 0.3, 0.2]),
-        'prob_prox_compra': np.random.uniform(0.05, 0.99, len(customer_names)).round(2),
-        'sugestao_prox_produto': np.random.choice(products, len(customer_names)),
-        'datas_prox_compra': datas_prox_compra
-    })
-    
-    #df_to_parket(df_customers, "./data/customers.parquet")
-
-    # Geração dos registros de vendas
-    sales_data = []
-    for _ in range(num_records):
-        customer_id = np.random.choice(customer_ids)
-        sale_date = datetime.now() - timedelta(days=np.random.randint(1, 730))
-        product = np.random.choice(products)
-        sale_value = np.random.uniform(500, 15000)
-        sales_data.append([customer_id, sale_date, product, sale_value])
-
-    df_sales = pd.DataFrame(sales_data, columns=['id_cliente', 'data_venda', 'produto', 'valor_venda'])
-    #df_to_parket(df_sales, "./data/sales.parquet")
-    
-    # Combina os dados de vendas com os dados dos clientes
-    df_full = pd.merge(df_sales, df_customers, on='id_cliente')
-    #df_to_parket(df_full, "./data/full.parquet")
-    
-    return df_full
-
+# --- Funções de Apoio ---
 @st.cache_data
 def load_data():
-    ML_ZONE_DIR = './data/redis/'
-    
-    df_customers = pd.read_parquet(f'{ML_ZONE_DIR}customers.parquet')
-    
-    df_sales = pd.read_parquet(f'{ML_ZONE_DIR}sales.parquet')
-    
-    df_sales.drop(columns=['nome_cliente'], inplace=True)
-        
-    # Combina os dados de vendas com os dados dos clientes
-    df_full = pd.merge(df_sales, df_customers, on='id_cliente')
-    
-    return df_full
+    try:
+        DATA_DIR = './data/redis/'
+        df_customers = pd.read_parquet(f'{DATA_DIR}customers.parquet')
+        df_sales = pd.read_parquet(f'{DATA_DIR}sales.parquet')
+        if 'nome_cliente' in df_sales.columns:
+            df_sales.drop(columns=['nome_cliente'], inplace=True)
+        df_full = pd.merge(df_sales, df_customers, on='id_cliente', how='left')
+        return df_full
+    except FileNotFoundError:
+        st.error(f"Erro: Arquivos de dados não encontrados no diretório '{DATA_DIR}'. Verifique o caminho.")
+        return pd.DataFrame()
 
+def format_currency(value):
+    try:
+        return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return "R$ 0,00"
+
+# --- Páginas do Dashboard ---
 def show_segmentation_page(df):
-    """
-    Exibe a página do Protótipo 1: Dashboard de Segmentação de Clientes.
-    """
-    st.title("📈 Dashboard de Segmentação de Clientes")
+    st.title("Dashboard de Segmentação de Clientes")
     st.markdown("Analise os perfis de clientes para criar estratégias de marketing e vendas mais eficazes.")
-
-    # --- Lógica de Análise RFV (Recência, Frequência, Valor) ---
     today = datetime.now()
-    
-    
     rfv_df = df.groupby('nome_cliente').agg(
         recencia=('data_venda', lambda date: (today - date.max()).days),
         frequencia=('data_venda', 'count'),
         valor_total=('valor_venda', 'sum'),
-        segmento=('segmento', 'first') # Pega o segmento pré-definido
+        segmento=('segmento', 'first')
     ).reset_index()
 
-    # --- Barra Lateral de Filtros ---
     st.sidebar.header("Filtros")
-    selected_segments = st.sidebar.multiselect(
-        "Selecione os Segmentos",
-        options=rfv_df['segmento'].unique(),
-        default=rfv_df['segmento'].unique()
-    )
-    
+    segment_options = sorted(rfv_df['segmento'].unique())
+    selected_segments = st.sidebar.multiselect("Filtrar por Grupo do Cliente", options=segment_options, default=segment_options)
     filtered_rfv_df = rfv_df[rfv_df['segmento'].isin(selected_segments)]
 
-    # --- Métricas Chave ---
     total_clientes = filtered_rfv_df['nome_cliente'].nunique()
     receita_total = filtered_rfv_df['valor_total'].sum()
     ticket_medio = receita_total / total_clientes if total_clientes > 0 else 0
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Clientes Ativos", f"{total_clientes}", "no período")
-    #col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}")
-    #col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}")
-    # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
-    col2.metric("Receita Total Gerada", f"R$ {receita_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    col3.metric("Ticket Médio por Cliente", f"R$ {ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    col1.metric("Clientes Ativos", f"{total_clientes}")
+    col2.metric("Receita Total Gerada", format_currency(receita_total))
+    col3.metric("Ticket Médio por Cliente", format_currency(ticket_medio))
     st.markdown("---")
 
-    # --- Gráficos e Tabelas ---
-    col1, col2 = st.columns([2, 1]) # Coluna do gráfico maior que a do resumo
-
+    col1, col2 = st.columns([2, 1])
     with col1:
-        st.subheader("Visualização dos Segmentos (Recência vs Frequência)")
+        st.subheader("Posicionamento de Clientes por RFM")
         fig = px.scatter(
-            filtered_rfv_df,
-            x='recencia',
-            y='frequencia',
-            size='valor_total',
-            color='segmento',
-            hover_name='nome_cliente',
-            size_max=60,
-            title="Posicionamento de Clientes por RFV"
+            filtered_rfv_df, x='recencia', y='frequencia', size='valor_total', color='segmento',
+            hover_name='nome_cliente', size_max=60,
+            labels={'recencia': 'Recência (dias)', 'frequencia': 'Frequência (compras)', 'segmento': 'Grupo do Cliente'},
+            color_discrete_sequence=px.colors.qualitative.Plotly
         )
-        fig.update_layout(xaxis_title="Recência (dias desde a última compra)", yaxis_title="Frequência (nº de compras)")
+        fig.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
         st.plotly_chart(fig, use_container_width=True)
-
     with col2:
-        st.subheader("Resumo por Segmento")
+        st.subheader("Resumo por Grupo")
         segment_summary = filtered_rfv_df.groupby('segmento')['valor_total'].sum().sort_values(ascending=False)
-        st.dataframe(
-            segment_summary,
-            column_config={
-                "segmento": st.column_config.Column(
-                    "Segmento",
-                    help="Segmento",
-                ),
-                "valor_total": st.column_config.NumberColumn(
-                    "Valor Total",
-                    format="%.2f",
-                    help="Valor total de compra",
-                ),            
-            },
-        )
-        
-        # --- Data Storytelling ---
+        segment_summary_df = segment_summary.reset_index()
+        segment_summary_df.columns = ["Segmentação", "Valor Total"]
+        segment_summary_df['Valor Total'] = segment_summary_df['Valor Total'].map(format_currency)
+        st.dataframe(segment_summary_df, use_container_width=True, hide_index=True)
         st.markdown("#### 💡 Insights Rápidos")
         try:
             top_segment = segment_summary.idxmax()
-        except:
-            top_segment = 'NENHUM SELECIONADO'
-        
-        st.info(f"O segmento **{top_segment}** é o mais valioso, representando a maior parte da receita. Focar em ações de fidelidade para este grupo pode maximizar o retorno.")
+            st.info(f"O grupo **{top_segment}** é o mais valioso.")
+        except ValueError:
+            st.warning("Nenhum grupo selecionado.")
 
-    st.subheader("Detalhes dos Clientes no Segmento")
+    st.subheader("Detalhes dos Clientes")
     st.dataframe(
-        filtered_rfv_df,        
+        filtered_rfv_df, 
         column_config={
-            "nome_cliente": st.column_config.Column(
-                "Cliente",
-                help="Nome do Cliente",
-            ),
-            "recencia": st.column_config.Column(
-                "Recência (dias)",
-                help="Recência (dias desde a última compra)",
-            ),
-            "frequencia": st.column_config.NumberColumn(
-                "Frequência",
-                help="Frequência (nº de compras)",
-            ),
-            "valor_total": st.column_config.NumberColumn(                
-                "Valor Total",
-                format="%.2f",
-                help="Valor Total",
-            ),
-            "segmento": st.column_config.Column(
-                "Segmento",
-                help="Segmento",
-            ),
-        
+            "nome_cliente": "Cliente",
+            "recencia": "Recência (dias)",
+            "frequencia": "Frequência",
+            "valor_total": st.column_config.NumberColumn("Valor Total (R$)", format="R$ %.2f"),
+            "segmento": "Grupo do Cliente"
         },
-        hide_index=True,
+        hide_index=True, use_container_width=True
     )
-
 
 def show_opportunities_page(df):
-    """
-    Exibe a página do Protótipo 2: Radar de Oportunidades de Venda.
-    """
-    st.title("🎯 Radar de Oportunidades de Venda")
+    st.title("Radar de Oportunidades de Venda")
     st.markdown("Identifique proativamente quais clientes abordar e o que oferecer.")
-
-    # --- Barra Lateral de Filtros ---
     st.sidebar.header("Filtros de Prospecção")
-    
     dias = ['30 dias', '7 dias']
     colunas_predicao = ['prob_compra_30d', 'prob_compra_7d']
-    
-    prediction_model = st.sidebar.selectbox("Filtrar por probabilidade de compra em:", dias)
-    
+    prediction_model = st.sidebar.selectbox("Probabilidade de compra em:", dias)
     index = dias.index(prediction_model)
-    
     prob_column = colunas_predicao[index]
-    
-    prob_threshold = st.sidebar.slider(
-        f"Mostrar clientes com probabilidade de compra em ({dias[index]}) acima de:",
-        min_value=0, max_value=100, value=75, step=5
-    ) / 100.0
-
-    # Filtra clientes únicos com base na probabilidade
+    prob_range = st.sidebar.slider(
+        f"Prob. Compra ({dias[index]}) entre:",
+        min_value=0, max_value=100, value=(75, 100), step=1
+    )
+    min_prob, max_prob = prob_range[0] / 100.0, prob_range[1] / 100.0
     df_customers_unique = df.drop_duplicates(subset=['id_cliente']).set_index('id_cliente')
-    
-    opportunities_df = df_customers_unique[df_customers_unique[prob_column] >= prob_threshold]
-    opportunities_df = opportunities_df.sort_values(by=prob_column, ascending=False)
-    
-    # --- Data Storytelling Header ---
-    st.header(f"⚡ Encontramos {len(opportunities_df)} clientes com alta chance de comprar!")
-    
-    # --- Tabela de Ação ---
+    opportunities_df = df_customers_unique[
+        (df_customers_unique[prob_column] >= min_prob) &
+        (df_customers_unique[prob_column] <= max_prob)
+    ].copy()
+    opportunities_df[prob_column] = opportunities_df[prob_column] * 100
+    opportunities_df_sorted = opportunities_df.sort_values(by=prob_column, ascending=False)
+    st.header(f"{len(opportunities_df_sorted)} clientes encontrados!")
     st.subheader("Lista de Clientes Prioritários")
     st.dataframe(
-        opportunities_df[['nome_cliente', prob_column, 'segmento', 
-                          'sugestao_prox_produto'                          
-                          ]],
-        
+        opportunities_df_sorted.reset_index(),
         column_config={
-            "id_cliente": st.column_config.Column(
-                "ID",
-                help="ID do Cliente",
+            "id_cliente": None,
+            "nome_cliente": "Cliente",
+            prob_column: st.column_config.ProgressColumn(
+                "Prob. Próxima Compra (%)", format="%.0f%%", min_value=0, max_value=100,
+                help="Probabilidade prevista pelo modelo XGBoost."
             ),
-            "nome_cliente": st.column_config.Column(
-                "Cliente",
-                help="Nome do Cliente",
-            ),
-            prob_column: st.column_config.NumberColumn(
-                "Prob. próxima compra (%)",
-                format="percent",
-                help="Probabilidade da próxima compra",
-            ),
-            "segmento": st.column_config.Column(
-                "Segmento",
-                help="Segmento",
-            ),
-            "sugestao_prox_produto": st.column_config.Column(
-                "Próximo trecho",
-                help="Próximo trecho",
-            ),
-            # "datas_prox_compra": st.column_config.Column(
-            #     "Data próxima compra",
-            #     help="Data da próxima compra",
-            # ),
-        },
-        hide_index=True,
-        use_container_width=True
+            "segmento": "Grupo do Cliente",
+            "sugestao_prox_produto": "Sugestão de Próxima Viagem"
+        }, 
+        hide_index=True, use_container_width=True,
+        column_order=['nome_cliente', prob_column, 'segmento', 'sugestao_prox_produto']
     )
 
-    # --- Detalhes do Cliente (Drill-down) ---
     st.subheader("🔍 Análise Individual do Cliente")
-    if not opportunities_df.empty:
-        selected_customer = st.selectbox(
-            "Selecione um cliente da lista para ver mais detalhes:",
-            options=opportunities_df['nome_cliente']
+    if not opportunities_df_sorted.empty:
+        selected_customer_name = st.selectbox(
+            "Selecione um cliente da lista para ver o perfil completo:",
+            options=opportunities_df_sorted['nome_cliente']
         )
-        
-        with st.expander(f"Ver histórico de {selected_customer}"):
-            customer_history = df[df['nome_cliente'] == selected_customer]            
-            #st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}")
-            # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
-            st.metric("Total Gasto pelo Cliente", f"R$ {customer_history['valor_venda'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.write("Histórico de Compras:")
-            st.dataframe(customer_history[['data_venda', 'produto', 'valor_venda']],
-                         column_config={
-                            "data_venda": st.column_config.DatetimeColumn(
-                                "Data da Venda",
-                                help="ID do Cliente",
-                            ),
-                            "produto": st.column_config.Column(
-                                "Produto",
-                                help="Nome do Produto",
-                            ),
-                            "valor_venda": st.column_config.NumberColumn(
-                                "Valor da Venda",
-                                #format="localized",
-                                format="%.2f",
-                                help="Valor da venda",
-                            ),                            
-                        },
-                        hide_index=True, 
-                    )
+        with st.expander(f"Ver Perfil e Histórico de {selected_customer_name}", expanded=True):
+            with st.container(): 
+                customer_data = opportunities_df_sorted[opportunities_df_sorted['nome_cliente'] == selected_customer_name].iloc[0]
+                customer_history = df[df['nome_cliente'] == selected_customer_name]
+                ltv = customer_history['valor_venda'].sum()
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric(label="Grupo do Cliente", value=customer_data['segmento'])
+                with col2:
+                    st.metric(label=f"Prob. Compra ({dias[index]})", value=f"{customer_data[prob_column]:.0f}%")
+                with col3:
+                    st.metric(label="Sugestão de Viagem", value=customer_data['sugestao_prox_produto'])
+                with col4:
+                    st.metric(label="Lifetime Value", value=format_currency(ltv))
+                st.write("Histórico de Compras:")
+                st.dataframe(
+                    customer_history, 
+                    column_config={
+                        "data_venda": "Data da Venda",
+                        "produto": "Trecho da Viagem",
+                        "valor_venda": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f")
+                    },
+                    hide_index=True, use_container_width=True,
+                    column_order=['data_venda', 'produto', 'valor_venda']
+                )
     else:
-        st.warning("Nenhum cliente atende ao critério de probabilidade selecionado.")
-
+        st.warning("Nenhum cliente atende aos critérios de probabilidade selecionados.")
 
 def show_executive_summary_page(df):
-    
-    dias = ['30 dias', '7 dias']
-    colunas_predicao = ['prob_compra_30d', 'prob_compra_7d']
-    
-    prediction_model = st.sidebar.selectbox("Filtrar por probabilidade de compra em:", dias)
-    
-    index = dias.index(prediction_model)
-    
-    prob_column = colunas_predicao[index]
-    
-    
-    """
-    Exibe a página do Protótipo 3: Resumo Executivo Estratégico.
-    """
-    st.title("📊 Resumo Executivo ClickPlus")
+    st.title("Resumo Executivo ClickPlus")
     st.markdown(f"Relatório gerado em: **{datetime.now().strftime('%d/%m/%Y %H:%M')}**")
-    
-    # --- Cálculos para KPIs ---
+    prob_column = 'prob_compra_30d'
     df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
     receita_preditiva = (df_customers_unique['valor_venda'].mean() * df_customers_unique[prob_column]).sum()
     clientes_em_risco = df_customers_unique[df_customers_unique['segmento'] == 'Em Risco']['nome_cliente'].nunique()
     segment_sales = df.groupby('segmento')['valor_venda'].sum()
     top_segment = segment_sales.idxmax()
-
-    # --- Métricas de Alto Impacto ---
     col1, col2, col3 = st.columns(3)
-    #col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}", delta="Estimativa", delta_color="off")
-    # Streamlit não está obedecendo o locale então uma medida drástica foi tomada para formatar a saída
-    col1.metric("Receita Preditiva (Próximo Ciclo)", f"R$ {receita_preditiva:,.0f}".replace(",", "X").replace(".", ",").replace("X", "."), delta="Estimativa", delta_color="off")
-    col2.metric("Clientes em Risco de Churn", f"{clientes_em_risco}", help="Clientes no segmento 'Em Risco'.")
-    col3.metric("Segmento Mais Valioso", top_segment, help=f"Segmento que mais gerou receita: R$ {segment_sales.max():,.0f}")
-
+    col1.metric("Receita Preditiva (Próx. 30 dias)", format_currency(receita_preditiva))
+    col2.metric("Clientes em Risco de Churn", f"{clientes_em_risco}")
+    col3.metric("Grupo Mais Valioso", top_segment, help=f"Receita: {format_currency(segment_sales.max())}")
     st.markdown("---")
-
-    # --- Análise Narrativa (Data Storytelling) ---
     st.subheader("Análise Estratégica")
-    st.markdown(
-        f"""
-        - **Visão Geral:** Nossa análise preditiva estima uma receita de **R$ {receita_preditiva:,.2f}** no próximo ciclo de vendas, considerando o comportamento atual da base de clientes.
-        - **Foco Principal:** O segmento **'{top_segment}'** continua sendo o motor de crescimento. Estratégias de retenção e up-selling para este grupo são cruciais.
-        - **Ponto de Atenção:** Identificamos **{clientes_em_risco} clientes** com alto valor em risco de evasão. Uma campanha de reengajamento direcionada é recomendada com urgência para mitigar perdas.
-        """
-    )
+    st.markdown(f"""
+        - **Visão Geral:** Receita estimada de **{format_currency(receita_preditiva)}**.
+        - **Foco Principal:** O grupo **'{top_segment}'** é o motor de crescimento.
+        - **Ponto de Atenção:** Identificamos **{clientes_em_risco} clientes** em risco de churn.
+        """)
+    with st.expander("Ver detalhamento da Receita por Grupo de Cliente"):
+        st.bar_chart(segment_sales, color=PRIMARY_COLOR)
 
-    # --- Gráfico Chave e Detalhamento ---
-    with st.expander("Ver detalhamento da Receita por Segmento"):
-        st.bar_chart(segment_sales)
-        st.markdown("O gráfico acima ilustra a contribuição de cada segmento para a receita total. Use esta informação para alocar recursos de marketing e vendas de forma mais inteligente.")
-
-
-def show_ingestao_dados():
-    #st.title("Ingestão de dados")
-    #sst.markdown("Faça upload de um arquivos.")
-    up = st.file_uploader("upload file", type={"csv", "txt"})
-    if up is not None:
-        spectra_df = pd.read_csv(up)
-        st.write(spectra_df)
-        
-        
-def show_customer_360_page(df):
-    """
-    Exibe a página "Visão 360° do Cliente", consolidando todas as informações.
-    """
-    st.title("👤 Visão 360° do Cliente")
-    st.markdown("Uma visão completa dos insights, cluster e previsões para um cliente específico.")
-
-    df_customers_unique = df.drop_duplicates(subset=['id_cliente'])
-    
-    selected_customer_name = st.selectbox(
-        "Selecione um cliente para análise:",
-        options=sorted(df_customers_unique['nome_cliente'].unique())
-    )
-
-    if selected_customer_name:
-        customer_data = df_customers_unique[df_customers_unique['nome_cliente'] == selected_customer_name].iloc[0]
-        
-        st.header(f"Análise de {customer_data['nome_cliente']}")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.subheader("Perfil do Cliente")
-            st.metric(label="Segmento (Persona)", value=customer_data['segmento'])
-            st.info(f"Este cliente pertence ao grupo '{customer_data['segmento']}', com base em seu comportamento de compras (RFM).")
-
-        with col2:
-            st.subheader("Previsão de Compra")
-            st.metric(label="Prob. de Compra em 7 Dias", value=f"{customer_data['prob_compra_7d']:.0%}")
-            st.metric(label="Prob. de Compra em 30 Dias", value=f"{customer_data['prob_compra_30d']:.0%}")
-            st.warning(f"O modelo XGBoost indica uma probabilidade de {customer_data['prob_compra_30d']:.0%} de este cliente realizar uma nova compra no próximo mês.")
-
-        with col3:
-            st.subheader("Recomendação")
-            st.metric(label="Próximo Trecho Sugerido", value=customer_data['sugestao_prox_produto'])
-            st.success(f"Com base em seu perfil, a recomendação de próximo trecho é **{customer_data['sugestao_prox_produto']}**.")
-
-        with st.expander("Ver Histórico de Compras Detalhado"):
-            customer_history = df[df['nome_cliente'] == selected_customer_name]
-            st.metric("Total Gasto (Lifetime Value)", f"R$ {customer_history['valor_venda'].sum():,.2f}")
-            #colunas_historico = ['data_venda', 'trecho_alias', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
-            colunas_historico = ['data_venda', 'produto', 'valor_venda', 'tipo_viagem', 'viaja_sozinho']
-            st.dataframe(customer_history[colunas_historico])
-            
-
+# --- Função Principal ---
 def main():
+
     
     """
     Função principal que organiza a aplicação Streamlit.
@@ -473,34 +291,46 @@ def main():
     #locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
     # Gera os dados uma única vez
     #df = generate_fake_data()
+
+    try:
+        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+    except locale.Error:
+        st.warning("Localidade 'pt_BR.UTF-8' não encontrada.")
+        pass
+
+
     df = load_data()
 
-    # Menu de navegação na barra lateral
-    st.sidebar.image("./logo.png", width=100) # Um logo genérico
-    st.sidebar.title("Plataforma ClickPlus")
-    page_selection = st.sidebar.radio(
-        "Navegue pelos Protótipos",
-        [
-            "Dashboard de Segmentação", 
-            "Radar de Oportunidades", 
-            "Resumo Executivo", 
-            #"Ingestão de Dados",
-            "Visão 360° do Cliente"
-        ]
-    )
-    
-    # Exibe a página selecionada
-    if page_selection == "Dashboard de Segmentação":
-        show_segmentation_page(df)
-    elif page_selection == "Radar de Oportunidades":
-        show_opportunities_page(df)
-    elif page_selection == "Resumo Executivo":
-        show_executive_summary_page(df)
-    elif page_selection == "Ingestão de Dados":
-        show_ingestao_dados()
-    elif page_selection == "Visão 360° do Cliente":
-            show_customer_360_page(df)
+    if not df.empty:
+        with st.sidebar:
+            st.image("logo.png", use_container_width=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            page_selection = option_menu(
+                menu_title=None,
+                options=["Segmentação", "Oportunidades", "Resumo Executivo"],
+                icons=["people", "bullseye", "bar-chart-line"],
+                menu_icon="bus-front", default_index=0,
+                orientation="vertical",
+                styles={
+                    "container": {"padding": "0!important", "background-color": "#1c1c2e"},
+                    "icon": {"color": "white", "font-size": "20px"},
+                    "nav-link": {
+                        "font-size": "16px",
+                        "text-align": "left",
+                        "margin":"8px",
+                        "--hover-color": "#3a3b4a",
+                        "font-family": FONT_FAMILY
+                    },
+                    "nav-link-selected": {"background-color": PRIMARY_COLOR},
+                }
+            )
+
+        if page_selection == "Segmentação":
+            show_segmentation_page(df)
+        elif page_selection == "Oportunidades":
+            show_opportunities_page(df)
+        elif page_selection == "Resumo Executivo":
+            show_executive_summary_page(df)
 
 if __name__ == "__main__":
     main()
-    
