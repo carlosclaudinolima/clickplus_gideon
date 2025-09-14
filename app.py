@@ -283,11 +283,21 @@ def show_executive_summary_page(df):
 
 # --- Função Principal ---
 def main():
+
+    
+    """
+    Função principal que organiza a aplicação Streamlit.
+    """
+    #locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+    # Gera os dados uma única vez
+    #df = generate_fake_data()
+
     try:
         locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
     except locale.Error:
         st.warning("Localidade 'pt_BR.UTF-8' não encontrada.")
         pass
+
 
     df = load_data()
 
