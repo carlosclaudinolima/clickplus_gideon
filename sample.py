@@ -74,8 +74,8 @@ if __name__ == '__main__':
         print(f" - Compras no DataFrame reduzido: {compras_reduzidas}")
         assert compras_originais == compras_reduzidas
         print("=> O histórico do cliente foi mantido integralmente. Sucesso!")
-        df_reduzido.to_parquet(arquivo_destino)
-        print(f"Arquivo salvo com sucesso em {arquivo_destino}")
+        df_reduzido.to_parquet(arquivo_origem)
+        print(f"Arquivo salvo com sucesso em {arquivo_origem}")
         
         
 
